@@ -1,0 +1,5 @@
+.gitignore
+
+__pycache__/
+*.pyc
+# db_settings.py    # uncomment this if a real DB is ever used.
