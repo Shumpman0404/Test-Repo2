@@ -1,83 +1,44 @@
 import streamlit as st
+import pandas as pd
 import psycopg2
-from psycopg2 import pool
-import db_settings  # Import the credentials
-from feed_fetcher import fetch_and_store_articles
-import logging
-import atexit
+from sqlalchemy import create_engine
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure connection details (replace with actual values)
+DB_HOST = "AI-Safety_postgres_db"  # e.g., "192.168.1.10"
+DB_NAME = "AI-Safety-Through-Debate"
+DB_USER = "AI-Safety-Through-Debate"
+DB_PASSWORD = "mypassword"
+DB_PORT = "5432"
 
-# Initialize a connection pool
-db_pool = pool.SimpleConnectionPool(
-    1, 20,  # Min and max connections
-    host=db_settings.DB_HOST,
-    port=db_settings.DB_PORT,
-    database=db_settings.DB_NAME,
-    user=db_settings.DB_USER,
-    password=db_settings.DB_PASSWORD,
-)
 
-def get_connection_from_pool():
-    """Get a connection from the pool."""
-    return db_pool.getconn()
+# Function to connect to the database and fetch data
+@st.cache_data(ttl=600)
+def load_data(query):
+    engine = create_engine(f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
+    with engine.connect() as conn:
+        return pd.read_sql(query, conn)
 
-def release_connection_to_pool(conn):
-    """Release a connection back to the pool."""
-    db_pool.putconn(conn)
+st.title("RSS Feed Data Viewer")
 
-# Register to close all connections on exit
-atexit.register(lambda: db_pool.closeall())
+# Dropdown for selecting data to view
+view_choice = st.selectbox("Choose data to view", ["Feeds", "Articles", "Categories", "Article Categories"])
 
-st.title('RSS News Feed Analysis Tool')
+if view_choice == "Feeds":
+    st.subheader("Feeds Table")
+    feeds_data = load_data("SELECT * FROM feeds")
+    st.dataframe(feeds_data)
 
-# Section to add a new feed
-st.header('Add a New Feed')
-feed_url = st.text_input('Feed URL')
-feed_name = st.text_input('Feed Name (optional)')
+elif view_choice == "Articles":
+    st.subheader("Articles Table")
+    articles_data = load_data("SELECT * FROM articles")
+    st.dataframe(articles_data)
 
-if st.button('Add Feed'):
-    if feed_url:
-        conn = get_connection_from_pool()
-        cur = conn.cursor()
-        try:
-            cur.execute("""
-                INSERT INTO feeds (feed_url, feed_name) 
-                VALUES (%s, %s) 
-                ON CONFLICT (feed_url) DO NOTHING
-            """, (feed_url, feed_name))
-            conn.commit()
-            st.success('Feed added successfully.')
-        except Exception as e:
-            logging.error(f"Error adding feed: {e}")
-            st.error(f'Error adding feed: {e}')
-        finally:
-            cur.close()
-            release_connection_to_pool(conn)
-    else:
-        st.warning('Please enter a feed URL.')
+elif view_choice == "Categories":
+    st.subheader("Categories Table")
+    categories_data = load_data("SELECT * FROM categories")
+    st.dataframe(categories_data)
 
-# Section to display existing feeds
-st.header('Existing Feeds')
-conn = get_connection_from_pool()
-cur = conn.cursor()
-try:
-    cur.execute("SELECT feed_id, feed_url, feed_name FROM feeds WHERE active = TRUE")
-    feeds = cur.fetchall()
-finally:
-    cur.close()
-    release_connection_to_pool(conn)
-
-for feed in feeds:
-    st.write(f"**ID**: {feed[0]}, **URL**: {feed[1]}, **Name**: {feed[2]}")
-
-# Button to fetch articles
-if st.button('Fetch Articles'):
-    with st.spinner('Fetching articles...'):
-        try:
-            fetch_and_store_articles()
-            st.success('Articles fetched successfully.')
-        except Exception as e:
-            logging.error(f"Error fetching articles: {e}")
-            st.error(f'Error fetching articles: {e}')
+elif view_choice == "Article Categories":
+    st.subheader("Article Categories Table")
+    article_categories_data = load_data("SELECT * FROM article_categories")
+    st.dataframe(article_categories_data)
