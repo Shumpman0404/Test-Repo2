@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: AI-Safety_postgres_db
+    container_name: AI-Safety_postgres_db_V2
     environment:
       POSTGRES_USER: AI-Safety-Through-Debate
       POSTGRES_PASSWORD: mypassword
