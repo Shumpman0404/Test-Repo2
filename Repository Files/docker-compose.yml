@@ -19,7 +19,7 @@ services:
       context: .            # Build from the current directory (Dockerfile required)
     container_name: streamlit_app
     ports:
-      - "8501:8501"         # Map host port 8501 to container port 8501
+      - "8501:8504"         # Map host port 8501 to container port 8501
     depends_on:
       - db                  # Ensure the database starts before the app
     environment:
